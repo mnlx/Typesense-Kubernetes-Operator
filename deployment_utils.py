@@ -18,9 +18,17 @@ def validate_spec(op_spec: dict) -> dict:
             if spec.get('limits'):
                 if not spec.get('memory') or spec.get('cpu'):
                     raise Exception("Memory or cpu is missing under limits")
+        if spec.get('resources'):
+            if spec.get('requests'):
+                if not spec.get('memory') or spec.get('cpu'):
+                    raise Exception("Memory or cpu is missing under requests")
+            if spec.get('limits'):
+                if not spec.get('memory') or spec.get('cpu'):
+                    raise Exception("Memory or cpu is missing under limits")
         return_data['namespace'] = spec.get('namespace','typesense')
         return_data['image'] =  spec.get('image','typesense/typesense')
         return_data['resources'] = spec.get('resources',None)
+        return_data['tolerations'] = spec.get('tolerations',None)
         return_data['nodeSelector'] = spec.get('nodeSelector',None)
         return_data['replicas'] = spec.get('replicas',3)
         if spec.get('storageClass'):
@@ -33,31 +41,31 @@ def validate_spec(op_spec: dict) -> dict:
         return_data['password'] = config.get('password','297beb01dd21c')
     return return_data
 
-def create_modify_namespace(core_obj: object,namespace='default') -> None:
-    '''
-    Function to create or modify namespace
-    Params:
-        core_obj: kubernetes CoreV1Api object
-    '''
-    try:
-        path = os.path.join(
-            os.path.dirname(__file__),
-            'templates/namespace.yaml'
-        )
-        configuration = None
-        with open(path,'r') as _file:
-            configuration = yaml.safe_load(_file)
-        if namespace !='default':
-            configuration['metadata']['name'] = namespace
-        try:
-            resp = core_obj.create_namespace(body=configuration)
-            logging.info(f"Created namespace {resp.metadata.name} successfully")
-        except ApiException as e:
-            logging.error(f"Kubernets Api Exception - Namespace: {e.body} ")
-            raise Exception(f"Kubernets Api Exception - Namespace: {e.body}")
-    except Exception as e:
-        logging.error(f"Exception namespace: {e}")
-        raise Exception(f"Exception namespace: {e}")
+# def create_modify_namespace(core_obj: object,namespace='default') -> None:
+#     '''
+#     Function to create or modify namespace
+#     Params:
+#         core_obj: kubernetes CoreV1Api object
+#     '''
+#     try:
+#         path = os.path.join(
+#             os.path.dirname(__file__),
+#             'templates/namespace.yaml'
+#         )
+#         configuration = None
+#         with open(path,'r') as _file:
+#             configuration = yaml.safe_load(_file)
+#         if namespace !='default':
+#             configuration['metadata']['name'] = namespace
+#         try:
+#             resp = core_obj.create_namespace(body=configuration)
+#             logging.info(f"Created namespace {resp.metadata.name} successfully")
+#         except ApiException as e:
+#             logging.error(f"Kubernets Api Exception - Namespace: {e.body} ")
+#             raise Exception(f"Kubernets Api Exception - Namespace: {e.body}")
+#     except Exception as e:
+#         logging.error(f"Exception namespace: {e}")
+#         raise Exception(f"Exception namespace: {e}")
         
 
 def deploy_typesense_statefulset(apps_obj: object,spec: dict,update=False) -> None:
@@ -104,6 +112,8 @@ def deploy_typesense_statefulset(apps_obj: object,spec: dict,update=False) -> No
             configuration['spec']['template']['spec']['containers'][0]['image'] = spec['image']
         if spec.get('resources'):
             configuration['spec']['template']['spec']['containers'][0]['resources'] = spec['resources']
+        if spec.get('tolerations'):
+            configuration['spec']['template']['spec']['containers'][0]['tolerations'] = spec['tolerations']
         if spec.get('nodeSelector'):
             configuration['spec']['template']['spec']['nodeSelector'] = spec['nodeSelector']
         if spec.get('password'):
@@ -201,17 +211,17 @@ def deploy_service(core_obj: object,namespace='default') -> None:
         logging.error(f"Exception service: {e}")
         raise Exception(f"Exception service: {e}")
 
-def cleanup(core_obj: object,namespace='default') -> None:
-    '''
-    Function to cleanup all resources
-    Params:
-        core_obj: kubernetes CoreV1Api object
-    '''
-    try:
-        core_obj.delete_namespace(namespace)
-    except ApiException as e:
-        logging.error(f"Kubernets Api Exception - Cleanup: {e.body} ")
-        raise Exception(f"Kubernets Api Exception - Cleanup: {e.body} ")
-    except Exception as e:
-        logging.error(f"Exception Cleanup: {e}")
-        raise Exception(f"Exception Cleanup: {e}")
+# def cleanup(core_obj: object,namespace='default') -> None:
+#     '''
+#     Function to cleanup all resources
+#     Params:
+#         core_obj: kubernetes CoreV1Api object
+#     '''
+#     try:
+#         core_obj.delete_namespace(namespace)
+#     except ApiException as e:
+#         logging.error(f"Kubernets Api Exception - Cleanup: {e.body} ")
+#         raise Exception(f"Kubernets Api Exception - Cleanup: {e.body} ")
+#     except Exception as e:
+#         logging.error(f"Exception Cleanup: {e}")
+#         raise Exception(f"Exception Cleanup: {e}")
